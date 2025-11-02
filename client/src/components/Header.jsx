@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../firebase/AuthContext';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -18,34 +20,34 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 shadow-sm">
+      <header className="glass sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-indigo-600 to-purple-600 flex items-center justify-center font-black text-white text-lg shadow-lg">
-              🌀
+          <button onClick={() => navigate('/')} className="flex items-center gap-4 hover:opacity-90 transition-all duration-300 group">
+            <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center font-black text-white text-lg shadow-sm group-hover:shadow-md transition-all">
+              🛡️
             </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 dark:text-white">Hurricane Prep AI</h1>
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Corpus Christi & Gulf Coast</div>
+            <div className="text-left">
+              <h1 className="text-xl font-black text-slate-800">Emergency Prep AI</h1>
+              <div className="text-xs text-slate-600 font-medium">Corpus Christi & Gulf Coast</div>
             </div>
-          </div>
+          </button>
           
-          <nav className="flex items-center gap-4">
-            <button className="hidden sm:block text-sm text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition">
-              Resources
+          <nav className="flex items-center gap-6">
+            <button 
+              onClick={() => navigate('/resources')}
+              className="hidden sm:block text-sm text-slate-700 hover:text-blue-500 font-medium transition-colors"
+            >
+              Browse Resources
             </button>
-            <button className="hidden sm:block text-sm text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition">
-              Emergency Contacts
-            </button>
-            <div className="w-px h-6 bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+            <div className="w-px h-6 bg-slate-300/50 hidden sm:block"></div>
             
             {user ? (
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 text-sm px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                  className="flex items-center gap-2 text-sm px-4 py-2 bg-white text-slate-700 font-medium rounded-lg shadow-sm hover:shadow-md transition-all border border-slate-200"
                 >
-                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
                     {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <span className="hidden sm:inline">{user.displayName || user.email?.split('@')[0]}</span>
@@ -55,25 +57,34 @@ export default function Header() {
                 </button>
                 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-2">
-                    <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 border border-slate-200">
+                    <div className="px-4 py-2 border-b border-slate-200">
+                      <div className="text-sm font-semibold text-slate-900">
                         {user.displayName || 'User'}
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      <div className="text-xs text-slate-600 truncate">
                         {user.email}
                       </div>
                     </div>
-                    <button className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition rounded">
                       Profile
                     </button>
-                    <button className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <button 
+                      onClick={() => {
+                        navigate('/alerts');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition rounded"
+                    >
+                      🔔 Alert Settings
+                    </button>
+                    <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition rounded">
                       Settings
                     </button>
-                    <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2">
+                    <div className="border-t border-slate-200 mt-2 pt-2">
                       <button
                         onClick={handleSignOut}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition rounded"
                       >
                         Sign Out
                       </button>
@@ -84,7 +95,7 @@ export default function Header() {
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="text-sm px-4 py-2 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
               >
                 Sign In
               </button>

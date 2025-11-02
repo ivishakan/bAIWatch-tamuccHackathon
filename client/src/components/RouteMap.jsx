@@ -4,10 +4,11 @@ import '@tomtom-international/web-sdk-maps/dist/maps.css';
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 
-export default function RouteMap({ route, origin, destination, onClose }) {
+export default function RouteMap({ route, summary, origin, destination, nearbyShelters = [], onClose }) {
   const mapElement = useRef(null);
   const mapInstance = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [showShelters, setShowShelters] = useState(true);
 
   useEffect(() => {
     if (!mapElement.current || !TOMTOM_API_KEY) return;
@@ -35,6 +36,47 @@ export default function RouteMap({ route, origin, destination, onClose }) {
         .setLngLat([destination.lng, destination.lat])
         .setPopup(new tt.Popup({ offset: 30 }).setHTML(`<div class="p-2"><strong>${destination.name}</strong><br/>${destination.address}</div>`))
         .addTo(map);
+
+      // Add shelter markers if available and enabled
+      if (showShelters && nearbyShelters && nearbyShelters.length > 0) {
+        nearbyShelters.forEach((shelter, index) => {
+          if (shelter.lat && shelter.lng) {
+            const markerElement = document.createElement('div');
+            markerElement.className = 'shelter-marker';
+            markerElement.style.cssText = `
+              background-color: #F59E0B;
+              width: 30px;
+              height: 30px;
+              border-radius: 50%;
+              border: 3px solid white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: bold;
+              color: white;
+              font-size: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              cursor: pointer;
+            `;
+            markerElement.textContent = (index + 1).toString();
+            
+            const popupHTML = `
+              <div class="p-3 max-w-xs">
+                <div class="font-bold text-lg mb-1">${shelter.name}</div>
+                <div class="text-sm text-gray-600 mb-2">${shelter.address}</div>
+                ${shelter.distance ? `<div class="text-sm"><strong>Distance:</strong> ${shelter.distance.miles} mi</div>` : ''}
+                ${shelter.phone ? `<div class="text-sm"><strong>Phone:</strong> ${shelter.phone}</div>` : ''}
+                ${shelter.rating ? `<div class="text-sm"><strong>Rating:</strong> ⭐ ${shelter.rating}</div>` : ''}
+              </div>
+            `;
+            
+            new tt.Marker({ element: markerElement })
+              .setLngLat([shelter.lng, shelter.lat])
+              .setPopup(new tt.Popup({ offset: 35 }).setHTML(popupHTML))
+              .addTo(map);
+          }
+        });
+      }
 
       // Draw route if available
       if (route && route.legs && route.legs[0] && route.legs[0].points) {
@@ -80,7 +122,7 @@ export default function RouteMap({ route, origin, destination, onClose }) {
         mapInstance.current = null;
       }
     };
-  }, [route, origin, destination]);
+  }, [route, origin, destination, summary, nearbyShelters, showShelters]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -107,6 +149,34 @@ export default function RouteMap({ route, origin, destination, onClose }) {
 
         {/* Map Container */}
         <div className="flex-1 relative bg-slate-100 dark:bg-slate-900">
+          {/* Shelter Toggle Button */}
+          {nearbyShelters && nearbyShelters.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 1000,
+              backgroundColor: 'white',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}
+            onClick={() => setShowShelters(!showShelters)}
+            >
+              <input 
+                type="checkbox" 
+                checked={showShelters} 
+                onChange={() => setShowShelters(!showShelters)}
+                style={{ marginRight: '8px' }}
+              />
+              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>
+                Show Shelters ({nearbyShelters.length})
+              </span>
+            </div>
+          )}
+          
           <div ref={mapElement} className="w-full h-full" />
           {!mapLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-slate-900">
@@ -123,26 +193,26 @@ export default function RouteMap({ route, origin, destination, onClose }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                {route?.summary?.durationMinutes || Math.round((destination.distance || 0) * 2)} min
+                {summary?.durationMinutes || 0} min
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Travel Time</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {route?.summary?.distanceMiles || ((destination.distance || 0) * 0.621371).toFixed(1)} mi
+                {summary?.distanceMiles || '0.0'} mi
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Distance</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {destination.capacity}
+                {destination.capacity || 'N/A'}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Capacity</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {route?.summary?.trafficDelay > 0 
-                  ? `+${Math.round(route.summary.trafficDelay / 60)}` 
+                {summary?.trafficDelay > 0 
+                  ? `+${Math.round(summary.trafficDelay / 60)}` 
                   : '0'} min
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Traffic Delay</div>

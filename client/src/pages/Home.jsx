@@ -2,66 +2,42 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { calculateScore, setChecklist } from '../store/store'
+import { calculateScore, setChecklist, setLocation } from '../store/store'
+import { apiService } from '../services/apiService'
+import { toast } from 'react-toastify'
 import Header from '../components/Header'
 import ScoreCard from '../components/ScoreCard'
-
-function AlertBanner() {
-  return (
-    <div className="bg-linear-to-r from-amber-500 to-orange-600 text-white px-6 py-3 shadow-lg">
-      <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">⚠️</span>
-          <div>
-            <div className="font-bold text-sm">NOAA Weather Alert</div>
-            <div className="text-sm opacity-95">Tropical Storm watch for Corpus Christi area. Monitor updates closely.</div>
-          </div>
-        </div>
-        <button className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition">View Details</button>
-      </div>
-    </div>
-  )
-}
+import ChecklistModal from '../components/ChecklistModal'
+import AIChatbot from '../components/AIChatbot'
+import SOSButton from '../components/SOSButton'
+import WeatherRiskAnalysis from '../components/WeatherRiskAnalysis'
 
 function HeroSection({ onStartWizard }) {
   return (
     <section className="relative py-20 px-6 text-center overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-br from-blue-600 via-indigo-700 to-purple-800 opacity-95"></div>
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
+      <div className="absolute inset-0 bg-linear-to-br from-blue-50 to-white"></div>
       <div className="relative z-10 max-w-5xl mx-auto">
-        <div className="inline-block px-4 py-2 bg-emerald-500/20 backdrop-blur-sm rounded-full text-emerald-100 text-sm font-medium mb-6 border border-emerald-400/30">
-          🌀 AI-Powered Hurricane Preparedness
+        <div className="inline-block px-5 py-2 bg-white rounded-full text-slate-700 text-sm font-medium mb-6 border border-slate-200 shadow-sm">
+          🛡️ AI-Powered Emergency Preparedness
         </div>
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 text-white drop-shadow-2xl leading-tight">
+        <h1 className="text-5xl md:text-6xl font-bold mb-6 text-slate-800 leading-tight">
           Stay Safe.<br />Stay Prepared.
         </h1>
-        <p className="max-w-3xl mx-auto text-xl md:text-2xl text-blue-50 mb-10 leading-relaxed">
-          Get your personalized hurricane action plan in minutes. Our AI assistant analyzes your household, location, and needs to create custom evacuation routes, supply checklists, and real-time alerts.
+        <p className="max-w-3xl mx-auto text-xl text-slate-600 mb-10 leading-relaxed">
+          Get your personalized emergency action plan in minutes. Our AI assistant analyzes your household, location, and needs to create custom evacuation routes, supply checklists, and real-time alerts for all hazards.
         </p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <button 
-            onClick={onStartWizard}
-            className="group px-8 py-4 bg-white text-indigo-700 font-bold rounded-xl shadow-2xl hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-300 flex items-center gap-2"
-          >
-            <span>Start Your Plan</span>
-            <span className="group-hover:translate-x-1 transition-transform">→</span>
-          </button>
-          <button className="px-8 py-4 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white font-bold rounded-xl border-2 border-white/30 transition-all duration-300">
-            Watch Demo
-          </button>
-        </div>
-        <div className="mt-12 flex flex-wrap justify-center gap-8 text-white/90 text-sm">
+        <div className="mt-12 flex flex-wrap justify-center gap-8 text-slate-600 text-sm">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-            Real-time NOAA data
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+            Real-time weather data
           </div>
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-            Multi-language support
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+            Multi-hazard alerts
           </div>
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-            SMS & Push alerts
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+            24/7 notifications
           </div>
         </div>
       </div>
@@ -94,28 +70,32 @@ function StepWizard({ onComplete }) {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-2xl mx-auto border border-slate-200 dark:border-slate-700">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
+    <div className="glass-card rounded-3xl shadow-2xl p-8 md:p-10 max-w-2xl mx-auto border border-white/50">
+      <div className="mb-10">
+        <div className="flex justify-between items-center mb-6">
           {steps.map((s) => (
-            <div key={s.id} className="flex flex-col items-center flex-1">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${
-                step >= s.id ? 'bg-indigo-600 text-white scale-110' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+            <div key={s.id} className="flex flex-col items-center flex-1 group">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-300 ${
+                s.id === step 
+                  ? 'gradient-primary text-white shadow-xl scale-110 ring-4 ring-blue-200' 
+                  : s.id < step 
+                    ? 'gradient-success text-white shadow-lg scale-105' 
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
               }`}>
                 {s.icon}
               </div>
-              <div className={`text-xs mt-2 font-medium ${step >= s.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+              <div className={`text-xs mt-3 font-semibold transition-colors ${step >= s.id ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}>
                 {s.title}
               </div>
             </div>
           ))}
         </div>
-        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div className="h-full bg-linear-to-r from-indigo-500 to-purple-600 transition-all duration-500" style={{ width: `${(step / 4) * 100}%` }}></div>
+          <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 transition-all duration-500 ease-out" style={{ width: `${(step / 4) * 100}%` }}></div>
         </div>
       </div>
 
-      <div className="min-h-[240px]">
+      <div className="min-h-60">
         {step === 1 && (
           <div className="space-y-4">
             <h3 className="text-2xl font-bold mb-2">What's your location?</h3>
@@ -125,7 +105,7 @@ function StepWizard({ onComplete }) {
               placeholder="Enter ZIP code"
               value={formData.zip}
               onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-indigo-500 focus:outline-none dark:bg-slate-700"
+              className="w-full px-4 py-3 glass-card rounded-xl focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300"
             />
           </div>
         )}
@@ -204,7 +184,7 @@ function StepWizard({ onComplete }) {
         </button>
         <button
           onClick={handleNext}
-          className="px-8 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:scale-105 transition-all"
+          className="glass-button px-8 py-3 text-white font-semibold rounded-2xl hover:shadow-xl hover:scale-105 transition-all"
         >
           {step === 4 ? 'Generate Plan' : 'Continue →'}
         </button>
@@ -229,6 +209,11 @@ export default function Home() {
   const dispatch = useDispatch()
   const score = useSelector((s) => s.preparedness.score)
   const [showWizard, setShowWizard] = useState(false)
+  const [generatingChecklist, setGeneratingChecklist] = useState(false)
+  const [checklistError, setChecklistError] = useState(null)
+  const [showChecklistModal, setShowChecklistModal] = useState(false)
+  const [checklistData, setChecklistData] = useState(null)
+  const [requestingLocation, setRequestingLocation] = useState(false)
 
   const seedChecklist = [
     '3-day water supply (1 gal/person/day)',
@@ -241,6 +226,129 @@ export default function Home() {
     'Evacuation plan & routes',
   ]
 
+  // Request browser location access
+  const handleRequestLocation = async () => {
+    setRequestingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast.error('❌ Geolocation is not supported by your browser');
+      setRequestingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Reverse geocode to get zip code
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '***REMOVED***'}`
+          );
+          const data = await response.json();
+          
+          if (data.results && data.results[0]) {
+            const addressComponents = data.results[0].address_components;
+            const zipComponent = addressComponents.find(
+              component => component.types.includes('postal_code')
+            );
+            
+            if (zipComponent) {
+              dispatch(setLocation({ 
+                zip: zipComponent.long_name,
+                latitude,
+                longitude
+              }));
+              toast.success(`✅ Location set: ${zipComponent.long_name}`);
+            } else {
+              toast.warning('⚠️ Could not determine ZIP code from location');
+            }
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          toast.error('❌ Failed to get location details');
+        }
+        
+        setRequestingLocation(false);
+      },
+      (error) => {
+        console.error('Location error:', error);
+        let errorMessage = '❌ Failed to access location';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '❌ Location access denied. Please enable in browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '❌ Location information unavailable';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '❌ Location request timed out';
+            break;
+        }
+        
+        toast.error(errorMessage);
+        setRequestingLocation(false);
+      }
+    );
+  };
+
+  // Generate AI-powered checklist
+  const handleGenerateChecklist = async () => {
+    setGeneratingChecklist(true)
+    setChecklistError(null)
+
+    try {
+      // For now, generate a custom checklist without user profile
+      // You can later integrate with actual user data
+      const response = await apiService.generateCustomChecklist({
+        household_composition: {
+          kids: 0,
+          elderly: 0,
+          pets: []
+        },
+        current_supplies: {},
+        medical_needs: {},
+        language: 'en'
+      })
+
+      if (response.success && response.checklist) {
+        // Store the full response for the modal
+        setChecklistData(response)
+        
+        // Parse the AI-generated checklist text into an array
+        const checklistItems = response.checklist
+          .split('\n')
+          .filter(line => line.trim())
+          .map(line => line.replace(/^[-•*]\s*/, '').trim())
+          .filter(item => item.length > 0 && !item.startsWith('#'))
+
+        // Update Redux store with AI-generated checklist
+        dispatch(setChecklist(checklistItems.length > 0 ? checklistItems : seedChecklist))
+        dispatch(calculateScore())
+
+        // Show the modal with the checklist
+        setShowChecklistModal(true)
+
+        console.log('AI Checklist generated:', {
+          model: response.modelUsed,
+          itemCount: checklistItems.length
+        })
+      } else {
+        throw new Error('Failed to generate checklist')
+      }
+    } catch (error) {
+      console.error('Error generating AI checklist:', error)
+      setChecklistError('Could not generate AI checklist. Using default.')
+      
+      // Fallback to seed checklist
+      dispatch(setChecklist(seedChecklist))
+      dispatch(calculateScore())
+    } finally {
+      setGeneratingChecklist(false)
+    }
+  }
+
   function handleWizardComplete(data) {
     console.log('Plan data:', data)
     dispatch(setChecklist(seedChecklist))
@@ -249,109 +357,159 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-white dark:bg-slate-900">
       <Header />
-      <AlertBanner />
       
       {!showWizard ? (
         <>
           <HeroSection onStartWizard={() => setShowWizard(true)} />
           
           <main className="max-w-7xl mx-auto px-6 py-16">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-              <div className="lg:col-span-2 space-y-8">
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <FeatureCard
-                    icon="🗺️"
-                    title="Smart Evacuation Routes"
-                    description="Real-time traffic, road closures, and safe routes based on your ZIP code and vehicle type."
-                    action={<button onClick={() => navigate('/evacuation')} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">View Routes →</button>}
-                  />
-                  <FeatureCard
-                    icon="📋"
-                    title="Custom Checklist"
-                    description="AI-generated supply list tailored to your household size, pets, and medical needs."
-                    action={
-                      <button
-                        onClick={() => {
-                          dispatch(setChecklist(seedChecklist))
-                          dispatch(calculateScore())
-                        }}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
-                      >
-                        Generate Now
-                      </button>
-                    }
-                  />
-                  <FeatureCard
-                    icon="🌊"
-                    title="Flood Risk Analysis"
-                    description="Historical flood zones, tide forecasts, and drainage capacity for your exact address."
-                    action={<button className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">Check Risk →</button>}
-                  />
-                  <FeatureCard
-                    icon="📱"
-                    title="Multi-Channel Alerts"
-                    description="Timeline notifications (48h, 24h, 12h) via SMS, push, and voice in your language."
-                    action={<button className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">Enable Alerts →</button>}
-                  />
+            {/* Error Banner for Checklist Generation */}
+            {checklistError && (
+              <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg flex items-start gap-3">
+                <span className="text-xl">⚠️</span>
+                <div className="flex-1">
+                  <p className="font-medium">AI Service Unavailable</p>
+                  <p className="text-sm">{checklistError}</p>
                 </div>
+                <button 
+                  onClick={() => setChecklistError(null)}
+                  className="text-yellow-600 hover:text-yellow-800"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-                <div className="bg-linear-to-br from-purple-600 to-indigo-700 text-white rounded-2xl p-8 shadow-xl">
-                  <h3 className="text-2xl font-bold mb-3 flex items-center gap-3">
-                    <span className="text-3xl">🤖</span> AI Assistant Chat
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <FeatureCard
+                icon="🗺️"
+                title="Smart Evacuation Routes"
+                description="Real-time traffic, road closures, and safe routes for hurricanes, floods, wildfires, and other emergencies."
+                action={<button onClick={() => navigate('/evacuation')} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">View Routes →</button>}
+              />
+              <FeatureCard
+                icon="📋"
+                title="Custom Preparedness Checklist"
+                description="AI-generated supply list for all hazards, tailored to your household size, pets, and medical needs."
+                action={
+                  <button
+                    onClick={handleGenerateChecklist}
+                    disabled={generatingChecklist}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {generatingChecklist ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        🤖 Generate with AI
+                      </>
+                    )}
+                  </button>
+                }
+              />
+              <FeatureCard
+                icon="⚠️"
+                title="Multi-Hazard Risk Analysis"
+                description="Assess your risk for hurricanes, floods, tornadoes, severe storms, and other regional hazards."
+                action={<button className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">Check Risk →</button>}
+              />
+              <FeatureCard
+                icon="📱"
+                title="Emergency Alerts"
+                description="Receive critical alerts for all hazard types via SMS, push notifications, and email in your preferred language."
+                action={<button onClick={() => navigate('/alerts')} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">Enable Alerts →</button>}
+              />
+              
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-slate-100 dark:border-slate-700 h-full flex flex-col">
+                <ScoreCard score={score} />
+              </div>
+              
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-slate-100 dark:border-slate-700 h-full flex flex-col">
+                <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
+                  <span className="text-xl">⚡</span> Quick Start
+                </h4>
+                <div className="space-y-3 flex-1 flex flex-col justify-center">
+                  <button 
+                    onClick={() => setShowWizard(true)} 
+                    className="w-full text-left px-4 py-3 bg-linear-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>1. Complete 2-min survey</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={handleRequestLocation}
+                    disabled={requestingLocation}
+                    className="w-full text-left px-4 py-3 bg-linear-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>
+                        {requestingLocation ? (
+                          <span className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Getting location...
+                          </span>
+                        ) : (
+                          '2. Connect location'
+                        )}
+                      </span>
+                      {!requestingLocation && (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-16">
+              <div className="flex items-center">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Still have questions?</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Can't find what you're looking for? Our AI assistant is here to help with personalized guidance.</p>
+                </div>
+              </div>
+              
+              <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-xl border border-slate-100 dark:border-slate-700">
+                  <h3 className="text-2xl font-bold mb-3 flex items-center gap-3 text-slate-800 dark:text-white">
+                    <span className="text-3xl">🤖</span> AI Emergency Assistant
                   </h3>
-                  <p className="text-purple-100 mb-6">Ask questions, get personalized advice, and receive instant answers about hurricane preparation.</p>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4 space-y-3">
+                  <p className="text-slate-600 dark:text-slate-400 mb-6">Ask questions, get personalized advice, and receive instant answers about emergency preparedness for any hazard.</p>
+                  <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 mb-4 space-y-3">
                     <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-white/20 shrink-0"></div>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-2xl rounded-tl-none px-4 py-3 text-sm">
-                        Hi! I'm your AI prep assistant. What would you like to know?
+                      <div className="w-8 h-8 rounded-full bg-indigo-500 shrink-0"></div>
+                      <div className="bg-indigo-500 text-white rounded-2xl rounded-tl-none px-4 py-3 text-sm">
+                        Hi! I'm your AI emergency preparedness assistant. What would you like to know?
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Type your question..."
-                      className="flex-1 px-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:border-white/40"
+                      placeholder="Ask about any emergency..."
+                      className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400"
                     />
-                    <button className="px-6 py-3 bg-white text-indigo-700 rounded-xl font-semibold hover:bg-purple-50 transition">
+                    <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
                       Send
                     </button>
                   </div>
                 </div>
               </div>
-
-              <aside className="space-y-6">
-                <ScoreCard score={score} />
-                
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-slate-100 dark:border-slate-700">
-                  <h4 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">⚡</span> Quick Start
-                  </h4>
-                  <div className="space-y-3">
-                    <button onClick={() => setShowWizard(true)} className="w-full text-left px-4 py-3 bg-linear-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
-                      1. Complete 2-min survey
-                    </button>
-                    <button className="w-full text-left px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition">
-                      2. Connect location
-                    </button>
-                    <button className="w-full text-left px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition">
-                      3. Enable notifications
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-linear-to-br from-emerald-500 to-teal-600 text-white rounded-2xl p-6 shadow-lg">
-                  <div className="text-4xl mb-3">🏆</div>
-                  <h4 className="font-bold text-lg mb-2">Featured This Week</h4>
-                  <p className="text-sm text-emerald-50">Learn how to prepare your home for hurricane season with our interactive guide.</p>
-                  <button className="mt-4 w-full px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition">
-                    Start Guide
-                  </button>
-                </div>
-              </aside>
             </div>
           </main>
         </>
@@ -366,6 +524,19 @@ export default function Home() {
           <StepWizard onComplete={handleWizardComplete} />
         </div>
       )}
+      
+      {/* Checklist Modal */}
+      <ChecklistModal 
+        isOpen={showChecklistModal}
+        onClose={() => setShowChecklistModal(false)}
+        checklistData={checklistData}
+      />
+
+      {/* AI Chatbot */}
+      <AIChatbot />
+      
+      {/* SOS Emergency Button */}
+      <SOSButton />
     </div>
   )
 }

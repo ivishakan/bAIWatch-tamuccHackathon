@@ -24,7 +24,20 @@ const initialState = {
   },
   score: 0,
   checklist: [],
+  checklistCompleted: {}, // Track which items are completed { itemIndex: boolean }
   notifications: [],
+  notificationSettings: {
+    email: '',
+    phoneNumber: '',
+    emailEnabled: true,
+    smsEnabled: false,
+    hurricaneAlerts: true,
+    floodAlerts: true,
+    tornadoAlerts: true,
+    severeWeatherAlerts: true,
+    checklistReminders: true,
+  },
+  notificationStatus: null, // Server notification status
 }
 
 const preparednessSlice = createSlice({
@@ -44,24 +57,49 @@ const preparednessSlice = createSlice({
       state.transport = { ...state.transport, ...action.payload }
     },
     setChecklist(state, action) {
-      state.checklist = action.payload
+      const newChecklist = action.payload
+      // Only reset completion if checklist actually changed
+      const checklistChanged = JSON.stringify(state.checklist) !== JSON.stringify(newChecklist)
+      state.checklist = newChecklist
+      if (checklistChanged) {
+        // Reset completion tracking only when checklist content changes
+        state.checklistCompleted = {}
+      }
+    },
+    toggleChecklistItem(state, action) {
+      const index = action.payload
+      state.checklistCompleted[index] = !state.checklistCompleted[index]
+    },
+    setChecklistCompletion(state, action) {
+      // Set multiple completions at once: { 0: true, 1: false, ... }
+      state.checklistCompleted = { ...state.checklistCompleted, ...action.payload }
     },
     addNotification(state, action) {
       state.notifications.push(action.payload)
     },
+    setNotificationSettings(state, action) {
+      state.notificationSettings = { ...state.notificationSettings, ...action.payload }
+    },
+    setNotificationStatus(state, action) {
+      state.notificationStatus = action.payload
+    },
     calculateScore(state) {
-      // Basic heuristic: start at 100 and subtract for missing essentials.
-      let score = 100
-      const { household, medical, transport, checklist } = state
-      if (household.kids > 0) score -= 5
-      if (household.elderly > 0) score -= 5
-      if (household.pets > 0) score -= 3
-      if (!transport.hasVehicle) score -= 15
-      if (medical.needsOxygen || medical.needsDialysis) score -= 20
-      // checklist completeness penalty
-      if (Array.isArray(checklist) && checklist.length < 8) score -= (8 - checklist.length) * 5
-      if (score < 0) score = 0
-      state.score = Math.max(0, Math.round(score))
+      // Score based on checklist completion percentage (0-100)
+      const { checklist, checklistCompleted } = state
+      
+      if (!Array.isArray(checklist) || checklist.length === 0) {
+        // No checklist = starting score of 0
+        state.score = 0
+        return
+      }
+      
+      // Count completed items
+      const totalItems = checklist.length
+      const completedCount = Object.values(checklistCompleted).filter(Boolean).length
+      const completionPercentage = Math.round((completedCount / totalItems) * 100)
+      
+      // Score is directly the completion percentage
+      state.score = completionPercentage
     },
   },
 })
@@ -72,7 +110,11 @@ export const {
   setMedical,
   setTransport,
   setChecklist,
+  toggleChecklistItem,
+  setChecklistCompletion,
   addNotification,
+  setNotificationSettings,
+  setNotificationStatus,
   calculateScore,
 } = preparednessSlice.actions
 

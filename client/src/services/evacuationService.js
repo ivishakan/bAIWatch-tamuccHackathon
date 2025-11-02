@@ -1,4 +1,6 @@
-// Corpus Christi and surrounding area safe zones / shelters
+import { apiService } from './apiService';
+
+// Corpus Christi and surrounding area safe zones / shelters (FALLBACK DATA)
 export const CORPUS_CHRISTI_SAFE_ZONES = [
   {
     id: 1,
@@ -106,8 +108,327 @@ export const FLOOD_ZONES = [
 ];
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY;
+const USE_BACKEND_API = import.meta.env.VITE_USE_BACKEND_API !== 'false'; // Default to true
 
 class EvacuationService {
+  /**
+   * Get user's current location using browser geolocation
+   */
+  async getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+        },
+        (error) => {
+          reject(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
+
+  /**
+   * Geocode an address to coordinates
+   * Uses backend API if available, falls back to TomTom
+   */
+  async geocodeAddress(address) {
+    // Try backend API first
+    if (USE_BACKEND_API) {
+      try {
+        const response = await apiService.geocode(address);
+        if (response.success && response.data) {
+          return {
+            lat: response.data.coordinates.lat,
+            lng: response.data.coordinates.lng,
+            address: response.data.address
+          };
+        }
+      } catch (error) {
+        console.warn('Backend geocoding failed, falling back to TomTom:', error);
+      }
+    }
+
+    // Fallback to TomTom
+    if (!TOMTOM_API_KEY) {
+      throw new Error('Geocoding service not available');
+    }
+
+    const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(address)}.json`;
+    const params = new URLSearchParams({
+      key: TOMTOM_API_KEY,
+      limit: 1,
+      countrySet: 'US',
+      lat: 27.8006, // Corpus Christi center
+      lon: -97.3964
+    });
+
+    try {
+      const response = await fetch(`${url}?${params}`);
+      if (!response.ok) {
+        throw new Error(`TomTom Geocoding API error: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        return {
+          lat: result.position.lat,
+          lng: result.position.lon,
+          address: result.address.freeformAddress
+        };
+      }
+      
+      throw new Error('No results found for address');
+    } catch (error) {
+      console.error('Error geocoding address:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find evacuation shelters near a location
+   * Uses backend API if available
+   */
+  async findShelters(location, radius = 10000, maxResults = 10) {
+    // Try backend API first
+    if (USE_BACKEND_API) {
+      try {
+        // Convert location to ZIP code or address string
+        let searchLocation = location;
+        if (typeof location === 'object' && location.lat && location.lng) {
+          // If we have coordinates, try to find nearby ZIP
+          // For now, use Corpus Christi default ZIP
+          searchLocation = '78401';
+        }
+
+        const response = await apiService.findShelters(searchLocation, {
+          radius,
+          max_results: maxResults
+        });
+
+        if (response.success && response.data) {
+          // Transform backend response to match our format
+          return response.data.shelters.map(shelter => ({
+            name: shelter.name,
+            address: shelter.address,
+            lat: shelter.location.lat,
+            lng: shelter.location.lng,
+            rating: shelter.rating,
+            phone: shelter.phone,
+            website: shelter.website,
+            open_now: shelter.open_now,
+            distance: shelter.distance ? parseFloat(shelter.distance.value) / 1000 : null, // meters to km
+            distanceMiles: shelter.distance ? parseFloat(shelter.distance.value) / 1609.34 : null,
+            duration: shelter.duration ? shelter.duration.text : null,
+            facilities: ['emergency_shelter'], // Backend doesn't provide this yet
+            type: 'shelter'
+          }));
+        }
+      } catch (error) {
+        console.warn('Backend shelter search failed, using fallback data:', error);
+      }
+    }
+
+    // Fallback to local data
+    return this.findBestSafeZones(location, {}, maxResults);
+  }
+
+  /**
+   * Get optimal evacuation routes
+   * Uses backend API if available, falls back to TomTom
+   */
+  async getEvacuationRoutes(origin, hazardInfo = {}) {
+    // Try backend API first
+    if (USE_BACKEND_API) {
+      try {
+        // Convert origin to address string if needed
+        let originStr = origin;
+        if (typeof origin === 'object' && origin.lat && origin.lng) {
+          originStr = `${origin.lat},${origin.lng}`;
+        }
+
+        const response = await apiService.getEvacuationRoute(originStr);
+        
+        if (response.success && response.data && response.data.route) {
+          const backendRoute = response.data;
+          
+          // Geocode the destination to get coordinates
+          let destCoords = { lat: null, lng: null };
+          try {
+            const geocoded = await this.geocodeAddress(backendRoute.destination);
+            destCoords = { lat: geocoded.lat, lng: geocoded.lng };
+          } catch (err) {
+            console.warn('Could not geocode destination:', err);
+          }
+          
+          // Decode the polyline to get route points
+          let routeLegs = null;
+          if (backendRoute.route.overview_polyline) {
+            try {
+              const decodedPoints = this.decodePolyline(backendRoute.route.overview_polyline);
+              routeLegs = [{
+                points: decodedPoints.map(point => ({
+                  latitude: point[0],
+                  longitude: point[1]
+                }))
+              }];
+            } catch (err) {
+              console.warn('Could not decode polyline:', err);
+            }
+          }
+          
+          // Transform nearby shelters data if available
+          let nearbyShelters = [];
+          if (backendRoute.nearby_shelters && Array.isArray(backendRoute.nearby_shelters)) {
+            nearbyShelters = backendRoute.nearby_shelters.map(shelter => ({
+              name: shelter.name,
+              address: shelter.address,
+              lat: shelter.location.lat,
+              lng: shelter.location.lng,
+              rating: shelter.rating,
+              phone: shelter.phone,
+              website: shelter.website,
+              open_now: shelter.open_now,
+              distance: shelter.distance ? {
+                text: shelter.distance.text,
+                value: shelter.distance.value,
+                km: (shelter.distance.value / 1000).toFixed(1),
+                miles: (shelter.distance.value / 1609.34).toFixed(1)
+              } : null,
+              duration: shelter.duration ? shelter.duration.text : null
+            }));
+          }
+          
+          const routeData = [{
+            destination: {
+              name: backendRoute.destination,
+              address: backendRoute.route.end_address,
+              lat: destCoords.lat,
+              lng: destCoords.lng,
+              type: 'safe_destination',
+              facilities: ['emergency', 'evacuation_center'],
+              capacity: 5000,
+              description: backendRoute.recommendation || `Safe evacuation destination: ${backendRoute.destination}`
+            },
+            route: {
+              summary: backendRoute.route,
+              legs: routeLegs
+            },
+            summary: {
+              distance: backendRoute.route.distance.value,
+              distanceKm: (backendRoute.route.distance.value / 1000).toFixed(1),
+              distanceMiles: (backendRoute.route.distance.value / 1609.34).toFixed(1),
+              duration: backendRoute.route.duration.value,
+              durationMinutes: Math.round(backendRoute.route.duration.value / 60),
+              trafficDelay: backendRoute.route.duration_in_traffic.value - backendRoute.route.duration.value,
+              departureTime: null,
+              arrivalTime: null
+            },
+            steps: backendRoute.route.steps || [],
+            polyline: backendRoute.route.overview_polyline,
+            nearby_shelters: nearbyShelters,
+            shelter_count: nearbyShelters.length
+          }];
+          
+          console.log('📍 Evacuation Route Data:', {
+            destination: routeData[0].destination.name,
+            summary: routeData[0].summary,
+            hasLegs: !!routeData[0].route.legs,
+            pointCount: routeData[0].route.legs?.[0]?.points?.length,
+            shelterCount: routeData[0].shelter_count
+          });
+          
+          return routeData;
+        }
+      } catch (error) {
+        console.warn('Backend route calculation failed, falling back to TomTom:', error);
+      }
+    }
+
+    // Fallback to TomTom API
+    return this.getEvacuationRoutesTomTom(origin, hazardInfo);
+  }
+
+  /**
+   * Get evacuation routes using TomTom API (original implementation)
+   */
+  async getEvacuationRoutesTomTom(origin, hazardInfo = {}) {
+    const bestZones = this.findBestSafeZones(origin, hazardInfo, 3);
+    
+    const routes = await Promise.allSettled(
+      bestZones.map(async (zone) => {
+        try {
+          const routeData = await this.fetchTomTomRoute(origin, zone);
+          const route = routeData.routes?.[0];
+          
+          if (!route) {
+            throw new Error('No route found');
+          }
+          
+          return {
+            destination: zone,
+            route: route,
+            summary: {
+              distance: route.summary.lengthInMeters,
+              distanceKm: (route.summary.lengthInMeters / 1000).toFixed(1),
+              distanceMiles: (route.summary.lengthInMeters / 1609.34).toFixed(1),
+              duration: route.summary.travelTimeInSeconds,
+              durationMinutes: Math.round(route.summary.travelTimeInSeconds / 60),
+              trafficDelay: route.summary.trafficDelayInSeconds,
+              departureTime: route.summary.departureTime,
+              arrivalTime: route.summary.arrivalTime
+            },
+            legs: route.legs,
+            sections: route.sections,
+            guidance: route.guidance
+          };
+        } catch (error) {
+          console.error(`Error fetching route to ${zone.name}:`, error);
+          return null;
+        }
+      })
+    );
+
+    const validRoutes = routes
+      .filter(result => result.status === 'fulfilled' && result.value !== null)
+      .map(result => result.value);
+
+    if (validRoutes.length === 0) {
+      // Fallback to direct distance calculation
+      return bestZones.map(zone => ({
+        destination: zone,
+        route: null,
+        summary: {
+          distance: zone.distance * 1000,
+          distanceKm: zone.distance.toFixed(1),
+          distanceMiles: (zone.distance * 0.621371).toFixed(1),
+          duration: null,
+          durationMinutes: Math.round(zone.distance * 2), // Rough estimate
+          trafficDelay: 0,
+          departureTime: null,
+          arrivalTime: null
+        },
+        fallback: true
+      }));
+    }
+
+    return validRoutes;
+  }
+
   /**
    * Calculate distance between two points using Haversine formula
    */
@@ -215,139 +536,45 @@ class EvacuationService {
   }
 
   /**
-   * Get optimal evacuation route with alternatives
+   * Decode Google Maps encoded polyline
+   * @param {string} encoded - Encoded polyline string
+   * @returns {Array<[number, number]>} Array of [lat, lng] coordinates
    */
-  async getEvacuationRoutes(origin, hazardInfo = {}) {
-    const bestZones = this.findBestSafeZones(origin, hazardInfo, 3);
+  decodePolyline(encoded) {
+    if (!encoded) return [];
     
-    const routes = await Promise.allSettled(
-      bestZones.map(async (zone) => {
-        try {
-          const routeData = await this.fetchTomTomRoute(origin, zone);
-          const route = routeData.routes?.[0];
-          
-          if (!route) {
-            throw new Error('No route found');
-          }
-          
-          return {
-            destination: zone,
-            route: route,
-            summary: {
-              distance: route.summary.lengthInMeters,
-              distanceKm: (route.summary.lengthInMeters / 1000).toFixed(1),
-              distanceMiles: (route.summary.lengthInMeters / 1609.34).toFixed(1),
-              duration: route.summary.travelTimeInSeconds,
-              durationMinutes: Math.round(route.summary.travelTimeInSeconds / 60),
-              trafficDelay: route.summary.trafficDelayInSeconds,
-              departureTime: route.summary.departureTime,
-              arrivalTime: route.summary.arrivalTime
-            },
-            legs: route.legs,
-            sections: route.sections,
-            guidance: route.guidance
-          };
-        } catch (error) {
-          console.error(`Error fetching route to ${zone.name}:`, error);
-          return null;
-        }
-      })
-    );
+    const points = [];
+    let index = 0;
+    const len = encoded.length;
+    let lat = 0;
+    let lng = 0;
 
-    const validRoutes = routes
-      .filter(result => result.status === 'fulfilled' && result.value !== null)
-      .map(result => result.value);
+    while (index < len) {
+      let b;
+      let shift = 0;
+      let result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
 
-    if (validRoutes.length === 0) {
-      // Fallback to direct distance calculation
-      return bestZones.map(zone => ({
-        destination: zone,
-        route: null,
-        summary: {
-          distance: zone.distance * 1000,
-          distanceKm: zone.distance.toFixed(1),
-          distanceMiles: (zone.distance * 0.621371).toFixed(1),
-          duration: null,
-          durationMinutes: Math.round(zone.distance * 2), // Rough estimate
-          trafficDelay: 0,
-          departureTime: null,
-          arrivalTime: null
-        },
-        fallback: true
-      }));
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.push([lat / 1e5, lng / 1e5]);
     }
 
-    return validRoutes;
-  }
-
-  /**
-   * Get user's current location using browser geolocation
-   */
-  async getCurrentLocation() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy
-          });
-        },
-        (error) => {
-          reject(error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    });
-  }
-
-  /**
-   * Geocode an address to coordinates using TomTom
-   */
-  async geocodeAddress(address) {
-    if (!TOMTOM_API_KEY) {
-      throw new Error('TomTom API key not configured');
-    }
-
-    const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(address)}.json`;
-    const params = new URLSearchParams({
-      key: TOMTOM_API_KEY,
-      limit: 1,
-      countrySet: 'US',
-      lat: 27.8006, // Corpus Christi center
-      lon: -97.3964
-    });
-
-    try {
-      const response = await fetch(`${url}?${params}`);
-      if (!response.ok) {
-        throw new Error(`TomTom Geocoding API error: ${response.status}`);
-      }
-      const data = await response.json();
-      
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
-        return {
-          lat: result.position.lat,
-          lng: result.position.lon,
-          address: result.address.freeformAddress
-        };
-      }
-      
-      throw new Error('No results found for address');
-    } catch (error) {
-      console.error('Error geocoding address:', error);
-      throw error;
-    }
+    return points;
   }
 }
 

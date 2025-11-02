@@ -1,4 +1,20 @@
+import { useSelector } from 'react-redux'
+
 export default function ScoreCard({ score = 0 }) {
+  const checklist = useSelector((state) => state.preparedness.checklist)
+  const checklistCompleted = useSelector((state) => state.preparedness.checklistCompleted)
+  
+  const getChecklistStats = () => {
+    if (!Array.isArray(checklist) || checklist.length === 0) {
+      return { total: 0, completed: 0 }
+    }
+    const total = checklist.length
+    const completed = Object.values(checklistCompleted).filter(Boolean).length
+    return { total, completed }
+  }
+
+  const { total, completed } = getChecklistStats()
+
   const getStatus = () => {
     if (score >= 90) return { text: 'Excellent!', color: 'from-emerald-500 to-green-600', textColor: 'text-emerald-600 dark:text-emerald-400' }
     if (score >= 70) return { text: 'Well Prepared', color: 'from-blue-500 to-cyan-600', textColor: 'text-blue-600 dark:text-blue-400' }
@@ -12,7 +28,7 @@ export default function ScoreCard({ score = 0 }) {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-100 dark:border-slate-700">
-      <h4 className="text-lg font-bold mb-6 flex items-center gap-2">
+      <h4 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800 dark:text-white">
         <span className="text-xl">📊</span> Preparedness Score
       </h4>
       
@@ -61,15 +77,34 @@ export default function ScoreCard({ score = 0 }) {
           <div className={`text-xl font-bold mb-2 ${status.textColor}`}>
             {status.text}
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
             {score === 0 
-              ? 'Complete the survey to get your personalized preparedness score.'
-              : 'Your readiness level based on household info, supplies, and planning.'}
+              ? 'Generate your checklist and start checking off items to improve your preparedness score.'
+              : `You've completed ${completed} of ${total} checklist items.`}
           </p>
+          {total > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                <span>Checklist Progress</span>
+                <span>{completed}/{total} items</span>
+              </div>
+              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-linear-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                  style={{ width: `${score}%` }}
+                />
+              </div>
+            </div>
+          )}
           {score > 0 && score < 100 && (
-            <button className="mt-3 text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
-              Improve Score →
-            </button>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              💡 Check off more items in your checklist to reach 100%
+            </p>
+          )}
+          {score === 100 && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              🎉 Congratulations! You're fully prepared!
+            </p>
           )}
         </div>
       </div>
